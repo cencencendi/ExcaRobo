@@ -15,7 +15,7 @@ class ExcaBot(gym.Env):
         else:
             physicsClient = p.connect(p.DIRECT)#or p.DIRECT for non-graphical version
 
-        self.MAX_EPISODE = 5000
+        self.MAX_EPISODE = 1000
         self.dt = 1.0/240.0
         self.max_theta = [3.1, 1.03, 1.51, 3.14]    
         self.min_theta = [-3.1, -0.954, -0.1214, -0.32]
