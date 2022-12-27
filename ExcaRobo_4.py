@@ -16,13 +16,30 @@ class ExcaRobo(gym.Env):
 
         self.MAX_EPISODE = 5_000
         self.dt = 1.0/240.0
-        self.max_theta = [3.1, 1.03, 1.51, 3.14]    
-        self.min_theta = [-3.1, -0.954, -0.1214, -0.32]
-        self.observation_space = spaces.Box(low =-np.inf, high = np.inf, shape=(15,), dtype=np.float32)
+        self.max_theta = [1.03, 1.51, 3.14]    
+        self.min_theta = [-0.954, -0.1214, -0.32]
+        self.position_target = np.array([10,0,2]) #theta0 = joint1, theta1 = joint2, theta2 = joint3, theta3 = joint4
+        self.max_obs = np.concatenate(
+            [
+                np.array([1,1,1,1,1,1]),
+                np.array([np.inf, np.inf, np.inf]),
+                np.array([0.1,0.1,0.1]),
+                np.array([np.inf, np.inf, np.inf])
+            ]
+        )
+        self.min_obs = np.concatenate(
+            [
+                np.array([-1,-1,-1,-1,-1,-1]),
+                np.array([np.inf, np.inf, np.inf]),
+                np.array([-0.1,-0.1,-0.1]),
+                np.array([-np.inf, -np.inf, -np.inf])
+            ]
+        )
+        self.observation_space = spaces.Box(low =self.min_obs, high = self.max_obs, dtype=np.float32)
         self.action_space = spaces.Box(low = -0.1, high = 0.1, shape=(3,), dtype=np.float32)
         self.steps_left = np.copy(self.MAX_EPISODE)
         self.state = np.zeros(5) #[theta1, theta2, x, y, z]
-        self.position_target = np.array([10,0,2]) #theta0 = joint1, theta1 = joint2, theta2 = joint3, theta3 = joint4
+        
         self.start_simulation()
 
     def step(self, action):
@@ -44,7 +61,7 @@ class ExcaRobo(gym.Env):
         vec = np.array(linkWorldPosition) - self.position_target
 
         reward_dist = 0.5*(0.5+np.exp(-np.linalg.norm(vec)))
-        reward_ctrl = -0.0005*np.linalg.norm(action) - 0.025*np.linalg.norm(action - self.last_act)
+        reward_ctrl = -0.005*np.linalg.norm(action) - 0.0025*np.linalg.norm(action - self.last_act)
 
         reward = reward_dist + reward_ctrl
         self.new_obs = self._get_obs(action, vec)
@@ -90,8 +107,8 @@ class ExcaRobo(gym.Env):
         print(f'State {self.new_obs}, action: {self.last_act}, done: {self.cur_done}')
 
     def _get_joint_state(self):
-        theta0, theta1, theta2, theta3 = p.getJointStates(self.boxId, [1,2,3,4])
-        return self.normalize(np.array([theta0[0], theta1[0], theta2[0], theta3[0]]))
+        theta0, theta1, theta2 = p.getJointStates(self.boxId, [2,3,4])
+        return self.normalize(np.array([theta0[0], theta1[0], theta2[0]]))
 
     def normalize(self, x):
         return ((x+np.pi)%(2*np.pi)) - np.pi
@@ -99,8 +116,8 @@ class ExcaRobo(gym.Env):
     def _get_obs(self, action, error):
         return np.concatenate(
             [
-                np.cos(self.theta_now[1:4]),
-                np.sin(self.theta_now[1:4]),
+                np.cos(self.theta_now),
+                np.sin(self.theta_now),
                 self.position_target,
                 action,
                 error
