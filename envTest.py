@@ -5,17 +5,17 @@ import numpy as np
 import os
 import time
 
-from exca_envVelocity3 import ExcaBot
+from ExcaRobo_1 import ExcaRobo
 
 
 SIM_ON = 0
 
 if __name__ == "__main__":
-    env = ExcaBot(SIM_ON)
+    env = ExcaRobo(SIM_ON)
 
     episode = 1
     for i in range(1,episode+1):
-        obs = env.reset()[0]
+        obs = env.reset()
         done = False
         score = 0
 
@@ -23,7 +23,5 @@ if __name__ == "__main__":
             env.render()
             action= env.action_space.sample()
             obs, reward, done, _ = env.step(action)
-            # print(env._get_joint_state())
-            # time.sleep(0.5)
             score += reward
         print(f"Score: {score}")
