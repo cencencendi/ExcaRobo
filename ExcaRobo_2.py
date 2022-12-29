@@ -61,7 +61,7 @@ class ExcaRobo(gym.Env):
         vec = np.array(linkWorldPosition) - self.position_target
 
         reward_dist = 0.5*(0.5+np.exp(-np.linalg.norm(vec)))
-        reward_ctrl = -0.0005*np.linalg.norm(action) - 0.025*np.linalg.norm(action - self.last_act)
+        reward_ctrl = -0.05*np.linalg.norm(action)
 
         reward = reward_dist + reward_ctrl
         self.new_obs = self._get_obs(action, vec)

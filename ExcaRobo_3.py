@@ -16,23 +16,24 @@ class ExcaRobo(gym.Env):
 
         self.MAX_EPISODE = 5_000
         self.dt = 1.0/240.0
-        self.max_theta = [3.1, 1.03, 1.51, 3.14]    
-        self.min_theta = [-3.1, -0.954, -0.1214, -0.32]
+        self.max_theta = [1.03, 1.51, 3.14]    
+        self.min_theta = [-0.954, -0.1214, -0.32]
         self.position_target = np.array([10,0,2]) #theta0 = joint1, theta1 = joint2, theta2 = joint3, theta3 = joint4
+        self.orientation_target = -5*np.pi/6
         self.max_obs = np.concatenate(
             [
                 np.array([1,1,1,1,1,1]),
-                self.position_target + 0.01,
+                np.array([np.inf, np.inf, np.inf, np.inf,1,1]),
                 np.array([0.1,0.1,0.1]),
-                np.array([np.inf, np.inf, np.inf])
+                np.array([np.inf, np.inf, np.inf, np.inf,1,1])
             ]
         )
         self.min_obs = np.concatenate(
             [
                 np.array([-1,-1,-1,-1,-1,-1]),
-                self.position_target - 0.01,
+                np.array([np.inf, np.inf, np.inf, np.inf,-1,-1]),
                 np.array([-0.1,-0.1,-0.1]),
-                np.array([-np.inf, -np.inf, -np.inf])
+                np.array([-np.inf, -np.inf, -np.inf, np.inf,-1,-1])
             ]
         )
         self.observation_space = spaces.Box(low =self.min_obs, high = self.max_obs, dtype=np.float32)
@@ -52,19 +53,24 @@ class ExcaRobo(gym.Env):
         p.stepSimulation()
         time.sleep(self.dt)
 
-        #Orientation (Coming Soon)
-
-        #Calculate error
+        #Orientation Error
         self.theta_now = self._get_joint_state()
+        self.orientation_now = -sum(self.theta_now)
+
+        orientation_error = self.rotmat2theta(
+            self.rot_mat(self.orientation_target)@self.rot_mat(self.orientation_now).T
+        )
+        #Position error
         linkWorldPosition, *_ = p.getLinkState(self.boxId,4, computeLinkVelocity=1, computeForwardKinematics=1)
 
         vec = np.array(linkWorldPosition) - self.position_target
 
         reward_dist = 0.5*(0.5+np.exp(-np.linalg.norm(vec)))
-        reward_ctrl = -0.0005*np.linalg.norm(action) - 0.025*np.linalg.norm(action - self.last_act)
+        reward_orientation = 0.5*np.exp(-np.linalg.norm(orientation_error))
+        reward_ctrl = -0.005*np.linalg.norm(action) - 0.0025*np.linalg.norm(action - self.last_act) 
 
-        reward = reward_dist + reward_ctrl
-        self.new_obs = self._get_obs(action, vec)
+        reward = reward_dist + reward_ctrl + reward_orientation
+        self.new_obs = self._get_obs(action, vec, orientation_error)
 
         if np.any(self.theta_now > np.array(self.max_theta)) or np.any(self.theta_now < np.array(self.min_theta)):
             done = True
@@ -100,30 +106,40 @@ class ExcaRobo(gym.Env):
         self.steps_left = np.copy(self.MAX_EPISODE)
         self.last_act = [0,0,0]
         self.cur_done = False
-        self.new_obs = np.zeros(15)
+        self.new_obs = np.zeros(21)
         return self.new_obs
 
     def render(self, mode='human'):
         print(f'State {self.new_obs}, action: {self.last_act}, done: {self.cur_done}')
 
     def _get_joint_state(self):
-        theta0, theta1, theta2, theta3 = p.getJointStates(self.boxId, [1,2,3,4])
-        return self.normalize(np.array([theta0[0], theta1[0], theta2[0], theta3[0]]))
+        theta0, theta1, theta2 = p.getJointStates(self.boxId, [2,3,4])
+        return self.normalize(np.array([theta0[0], theta1[0], theta2[0]]))
 
     def normalize(self, x):
         return ((x+np.pi)%(2*np.pi)) - np.pi
 
-    def _get_obs(self, action, error):
+    def _get_obs(self, action, error, orientation_error):
         return np.concatenate(
             [
-                np.cos(self.theta_now[1:4]),
-                np.sin(self.theta_now[1:4]),
+                np.cos(self.theta_now),
+                np.sin(self.theta_now),
                 self.position_target,
+                [self.orientation_target, 
+                 np.cos(self.orientation_target), 
+                 np.sin(self.orientation_target)],
                 action,
-                error
+                error,
+                [orientation_error, 
+                 np.cos(orientation_error), 
+                 np.sin(orientation_error)]
             ]
         )
+
+    def rot_mat(self, theta):
+        return np.array([[np.cos(theta), 0, np.sin(theta)],
+                         [0, 1, 0],
+                         [-np.sin(theta), 0, np.cos(theta)]])
     
-
-
-
+    def rotmat2theta(self, matrix):
+        return np.arctan2(matrix[0,2],matrix[0,0])

@@ -1,7 +1,7 @@
 import pybullet as p
 import time
 import pybullet_data
-import math
+import matplotlib.pyplot as plt
 import numpy as np
 physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
 p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
@@ -12,17 +12,19 @@ planeId = p.loadURDF("plane.urdf")
 startPos = [0, 0, 1.4054411813121799]
 startOrientation = p.getQuaternionFromEuler([0,0,0])
 boxId = p.loadURDF("aba_excavator/excavator.urdf",startPos, startOrientation)
-
+o = []
 for i in range(1000):
     # p.setJointMotorControl2(boxId, 1 , p.POSITION_CONTROL, targetPosition = 0)
     p.setJointMotorControl2(boxId, 2 , p.POSITION_CONTROL, targetPosition = -0.7, force= 250_000)
     p.setJointMotorControl2(boxId, 3 , p.POSITION_CONTROL, targetPosition = 1, force= 250_000)
-    # p.setJointMotorControl2(boxId, 4 , p.POSITION_CONTROL, targetPosition = 0)
-    (linkWorldPosition, *_) = p.getLinkState(boxId,3, computeLinkVelocity=1, computeForwardKinematics=1)
+    p.setJointMotorControl2(boxId, 4 , p.POSITION_CONTROL, targetPosition = 1.57)
+    (linkWorldPosition, orientation, *_) = p.getLinkState(boxId,4, computeLinkVelocity=1, computeForwardKinematics=1)
     # print(linkWorldPosition)    
     p.stepSimulation()
     time.sleep(1.0/240.)
     # theta0, theta1, theta2, theta3 = p.getJointStates(boxId, [1,2,3,4])
     # print(theta0[0], theta1[0], theta2[0], theta3[0])
-    print(linkWorldPosition)
+    print(orientation)
+    o.append(np.array(orientation))
 p.disconnect()
+plt.plot(list(range(1000)),np.array(o)[:,1])

@@ -14,7 +14,7 @@ class ExcaRobo(gym.Env):
         else:
             physicsClient = p.connect(p.DIRECT)#or p.DIRECT for non-graphical version
 
-        self.MAX_EPISODE = 5_000
+        self.MAX_EPISODE = 7_500
         self.dt = 1.0/240.0
         self.max_theta = [1.03, 1.51, 3.14]    
         self.min_theta = [-0.954, -0.1214, -0.32]
@@ -23,7 +23,7 @@ class ExcaRobo(gym.Env):
             [
                 np.array([1,1,1,1,1,1]),
                 np.array([np.inf, np.inf, np.inf]),
-                np.array([0.1,0.1,0.1]),
+                np.array([0.5,0.5,0.5]),
                 np.array([np.inf, np.inf, np.inf])
             ]
         )
@@ -31,12 +31,12 @@ class ExcaRobo(gym.Env):
             [
                 np.array([-1,-1,-1,-1,-1,-1]),
                 np.array([np.inf, np.inf, np.inf]),
-                np.array([-0.1,-0.1,-0.1]),
+                np.array([-0.5,-0.5,-0.5]),
                 np.array([-np.inf, -np.inf, -np.inf])
             ]
         )
         self.observation_space = spaces.Box(low =self.min_obs, high = self.max_obs, dtype=np.float32)
-        self.action_space = spaces.Box(low = -0.1, high = 0.1, shape=(3,), dtype=np.float32)
+        self.action_space = spaces.Box(low = -0.5, high = 0.5, shape=(3,), dtype=np.float32)
         self.steps_left = np.copy(self.MAX_EPISODE)
         self.state = np.zeros(5) #[theta1, theta2, x, y, z]
         
@@ -61,7 +61,7 @@ class ExcaRobo(gym.Env):
         vec = np.array(linkWorldPosition) - self.position_target
 
         reward_dist = 0.5*(0.5+np.exp(-np.linalg.norm(vec)))
-        reward_ctrl = -0.005*np.linalg.norm(action) - 0.0025*np.linalg.norm(action - self.last_act)
+        reward_ctrl = -0.05*np.linalg.norm(action) - 0.0025*np.linalg.norm(action - self.last_act)
 
         reward = reward_dist + reward_ctrl
         self.new_obs = self._get_obs(action, vec)
