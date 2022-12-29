@@ -134,6 +134,25 @@
         <axis xyz="0 1 0" />
         <limit effort="300" lower="-0.32" upper="3.14" velocity="0.1" />
     </joint>
+    <link name="Link_EE">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <sphere radius="0.1"/>
+            </geometry>
+        </visual>
+    </link>
+    <joint name="Joint_EE" type="fixed">
+        <parent link="link5"/>
+        <child link="Link_EE"/>
+        <origin rpy="0 0 0" xyz="2 0 -0.75"/>
+        <axis xyz="1 0 0"/>
+    </joint>
     <link name="kanan">
         <inertial>
             <origin rpy="0 0 0" xyz="0.137802794828529 -1.60969837001418 -0.780803192513706" />
