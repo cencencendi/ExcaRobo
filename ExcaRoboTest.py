@@ -9,7 +9,7 @@ SIM_ON = 1
 
 if __name__ == "__main__":
     env = ExcaRobo(SIM_ON)
-    model = PPO.load('Training/Saved Models/InvKin(2)_3Joint_Orientasi', env=env)
+    model = PPO.load('Training/Saved Models/InvKin(4)_3Joint3_Orientasi', env=env)
     obs = env.reset()
     score = 0
     done = False
@@ -21,8 +21,7 @@ if __name__ == "__main__":
         obs, reward, done, info = env.step(action)
         score += reward
         step+=1
-        pose_all.append(np.array(p.getLinkState(env.boxId,4, computeLinkVelocity=1, computeForwardKinematics=1)[0]))
-    orientation = p.getLinkState(env.boxId,4, computeLinkVelocity=1, computeForwardKinematics=1)[1]
+    orientation = p.getLinkState(env.boxId,5, computeLinkVelocity=1, computeForwardKinematics=1)[1]
     orientation = np.array(p.getEulerFromQuaternion(orientation))
-    print(f"Score: {score}, with step: {step}, pose: {np.mean(np.array(pose_all), axis=0)}, orientation: {orientation}")
+    print(f"Score: {score}, with step: {step}, pose: {np.array(p.getLinkState(env.boxId,4, computeLinkVelocity=1, computeForwardKinematics=1)[0])}, orientation: {orientation}")
     # p.disconnect()

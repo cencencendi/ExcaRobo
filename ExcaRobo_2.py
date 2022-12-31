@@ -16,9 +16,12 @@ class ExcaRobo(gym.Env):
 
         self.MAX_EPISODE = 5_000
         self.dt = 1.0/240.0
-        self.max_theta = [3.1, 1.03, 1.51, 3.14]    
-        self.min_theta = [-3.1, -0.954, -0.1214, -0.32]
-        self.position_target = np.array([10,0,2]) #theta0 = joint1, theta1 = joint2, theta2 = joint3, theta3 = joint4
+        self.max_theta = [1.03, 1.51, 3.14]    
+        self.min_theta = [-0.954, -0.1214, -0.32]
+        self.position_target = np.array([[6.652,0,1.465],
+                                         [5.917,0,1.15],
+                                         [5.446,0,1.046],
+                                         [5.465,0,1.773]])
         self.max_obs = np.concatenate(
             [
                 np.array([1,1,1,1,1,1]),
@@ -35,48 +38,59 @@ class ExcaRobo(gym.Env):
                 np.array([-np.inf, -np.inf, -np.inf])
             ]
         )
-        self.observation_space = spaces.Box(low = self.min_obs, high = self.max_obs, dtype=np.float32)
+        self.observation_space = spaces.Box(low =self.min_obs, high = self.max_obs, dtype=np.float32)
         self.action_space = spaces.Box(low = -0.1, high = 0.1, shape=(3,), dtype=np.float32)
         self.steps_left = np.copy(self.MAX_EPISODE)
         self.state = np.zeros(5) #[theta1, theta2, x, y, z]
-        
+        self.reward_buffer = []
         self.start_simulation()
 
     def step(self, action):
-        # p.setJointMotorControl2(self.boxId, 1 , p.VELOCITY_CONTROL, targetVelocity = action[0], force= 50_000)
-        p.setJointMotorControl2(self.boxId, 2 , p.VELOCITY_CONTROL, targetVelocity = action[0], force= 250_000)
-        p.setJointMotorControl2(self.boxId, 3 , p.VELOCITY_CONTROL, targetVelocity = action[1], force= 250_000)
-        p.setJointMotorControl2(self.boxId, 4 , p.VELOCITY_CONTROL, targetVelocity = action[2], force= 250_000)
+        for step, pose in enumerate(self.position_target):
+            arrived = False
+            self.steps_left = np.copy(self.MAX_EPISODE)
+            while not arrived:
+                # p.setJointMotorControl2(self.boxId, 1 , p.VELOCITY_CONTROL, targetVelocity = action[0], force= 50_000)
+                p.setJointMotorControl2(self.boxId, 2 , p.VELOCITY_CONTROL, targetVelocity = action[0], force= 250_000)
+                p.setJointMotorControl2(self.boxId, 3 , p.VELOCITY_CONTROL, targetVelocity = action[1], force= 250_000)
+                p.setJointMotorControl2(self.boxId, 4 , p.VELOCITY_CONTROL, targetVelocity = action[2], force= 250_000)
 
-        #Update Simulations
-        p.stepSimulation()
-        time.sleep(self.dt)
+                #Update Simulations
+                p.stepSimulation()
+                time.sleep(self.dt)
 
-        #Orientation (Coming Soon)
+                #Orientation (Coming Soon)
 
-        #Calculate error
-        self.theta_now = self._get_joint_state()
-        linkWorldPosition, *_ = p.getLinkState(self.boxId,4, computeLinkVelocity=1, computeForwardKinematics=1)
+                #Calculate error
+                self.theta_now = self._get_joint_state()
+                linkWorldPosition, *_ = p.getLinkState(self.boxId,4, computeLinkVelocity=1, computeForwardKinematics=1)
 
-        vec = np.array(linkWorldPosition) - self.position_target
+                vec = np.array(linkWorldPosition) - pose
 
-        reward_dist = 0.5*(0.5+np.exp(-np.linalg.norm(vec)))
-        reward_ctrl = -0.05*np.linalg.norm(action)
+                reward_dist = 0.5*(0.5+np.exp(-np.linalg.norm(vec)))
+                reward_ctrl = -0.005*np.linalg.norm(action) - 0.0025*np.linalg.norm(action - self.last_act)
 
-        reward = reward_dist + reward_ctrl
-        self.new_obs = self._get_obs(action, vec)
+                reward = reward_dist + reward_ctrl
+                self.new_obs = self._get_obs(action, vec)
 
-        if np.any(self.theta_now > np.array(self.max_theta)) or np.any(self.theta_now < np.array(self.min_theta)):
-            done = True
-            self.reward = -1000
-        else:
-            done = bool(self.steps_left<0)
-            self.reward = reward
-            self.steps_left -= 1
+                if np.any(self.theta_now > np.array(self.max_theta)) or np.any(self.theta_now < np.array(self.min_theta)):
+                    done = True
+                    self.reward = -4000
+                elif np.mean(vec**2)<1e-3:
+                    arrived = True
+                    self.reward_buffer.append(reward + self.steps_left)
+                    if step == self.position_target.shape[0]-1:
+                        done = True
+                else:
+                    arrived = bool(self.steps_left<0)
+                    self.reward_buffer.append(reward) 
+                    self.steps_left -= 1
 
-        #Update State
-        self.last_act = action
-        self.cur_done = done
+                #Update State
+                self.last_act = action
+                self.cur_done = done
+
+        self.reward = sum(self.reward_buffer)
         return self.new_obs, self.reward, done, {}
 
     def start_simulation(self):
@@ -107,8 +121,8 @@ class ExcaRobo(gym.Env):
         print(f'State {self.new_obs}, action: {self.last_act}, done: {self.cur_done}')
 
     def _get_joint_state(self):
-        theta0, theta1, theta2, theta3 = p.getJointStates(self.boxId, [1,2,3,4])
-        return self.normalize(np.array([theta0[0], theta1[0], theta2[0], theta3[0]]))
+        theta0, theta1, theta2 = p.getJointStates(self.boxId, [2,3,4])
+        return self.normalize(np.array([theta0[0], theta1[0], theta2[0]]))
 
     def normalize(self, x):
         return ((x+np.pi)%(2*np.pi)) - np.pi
@@ -116,8 +130,8 @@ class ExcaRobo(gym.Env):
     def _get_obs(self, action, error):
         return np.concatenate(
             [
-                np.cos(self.theta_now[1:4]),
-                np.sin(self.theta_now[1:4]),
+                np.cos(self.theta_now),
+                np.sin(self.theta_now),
                 self.position_target,
                 action,
                 error

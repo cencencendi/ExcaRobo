@@ -10,7 +10,7 @@ class ExcaRobo(gym.Env):
         super(ExcaRobo, self).__init__()
         self.sim_active = sim_active
         if self.sim_active:
-               physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
+            physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
         else:
             physicsClient = p.connect(p.DIRECT)#or p.DIRECT for non-graphical version
 
@@ -18,22 +18,22 @@ class ExcaRobo(gym.Env):
         self.dt = 1.0/240.0
         self.max_theta = [1.03, 1.51, 3.14]    
         self.min_theta = [-0.954, -0.1214, -0.32]
-        self.position_target = np.array([10,0,2]) #theta0 = joint1, theta1 = joint2, theta2 = joint3, theta3 = joint4
-        self.orientation_target = -5*np.pi/6
+        self.position_target = np.array([6.5,0,3.5]) #theta0 = joint1, theta1 = joint2, theta2 = joint3, theta3 = joint4
+        self.orientation_target = -np.pi/2
         self.max_obs = np.concatenate(
             [
-                np.array([1,1,1,1,1,1]),
-                np.array([np.inf, np.inf, np.inf, np.inf,1,1]),
+                np.array([1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]),
+                np.array([np.inf, np.inf, np.inf, np.inf]),
                 np.array([0.1,0.1,0.1]),
-                np.array([np.inf, np.inf, np.inf, np.inf,1,1])
+                np.array([np.inf, np.inf, np.inf, np.inf])
             ]
         )
         self.min_obs = np.concatenate(
             [
-                np.array([-1,-1,-1,-1,-1,-1]),
-                np.array([np.inf, np.inf, np.inf, np.inf,-1,-1]),
+                np.array([-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0]),
+                np.array([np.inf, np.inf, np.inf, np.inf]),
                 np.array([-0.1,-0.1,-0.1]),
-                np.array([-np.inf, -np.inf, -np.inf, np.inf,-1,-1])
+                np.array([-np.inf, -np.inf, -np.inf, np.inf])
             ]
         )
         self.observation_space = spaces.Box(low =self.min_obs, high = self.max_obs, dtype=np.float32)
@@ -55,7 +55,7 @@ class ExcaRobo(gym.Env):
 
         #Orientation Error
         self.theta_now = self._get_joint_state()
-        self.orientation_now = -sum(self.theta_now)
+        self.orientation_now = self.normalize(-sum(self.theta_now))
 
         orientation_error = self.rotmat2theta(
             self.rot_mat(self.orientation_target)@self.rot_mat(self.orientation_now).T
@@ -66,7 +66,7 @@ class ExcaRobo(gym.Env):
         vec = np.array(linkWorldPosition) - self.position_target
 
         reward_dist = 0.5*(0.5+np.exp(-np.linalg.norm(vec)))
-        reward_orientation = 0.5*np.exp(-np.linalg.norm(orientation_error))
+        reward_orientation = 0.5*np.exp(-orientation_error**2)
         reward_ctrl = -0.005*np.linalg.norm(action) - 0.0025*np.linalg.norm(action - self.last_act) 
 
         reward = reward_dist + reward_ctrl + reward_orientation
@@ -106,7 +106,7 @@ class ExcaRobo(gym.Env):
         self.steps_left = np.copy(self.MAX_EPISODE)
         self.last_act = [0,0,0]
         self.cur_done = False
-        self.new_obs = np.zeros(21)
+        self.new_obs = np.zeros(19)
         return self.new_obs
 
     def render(self, mode='human'):
@@ -122,17 +122,13 @@ class ExcaRobo(gym.Env):
     def _get_obs(self, action, error, orientation_error):
         return np.concatenate(
             [
-                np.cos(self.theta_now),
-                np.sin(self.theta_now),
+                np.cos(self.theta_now), [np.cos(self.orientation_now)],
+                np.sin(self.theta_now), [np.sin(self.orientation_now)],
                 self.position_target,
-                [self.orientation_target, 
-                 np.cos(self.orientation_target), 
-                 np.sin(self.orientation_target)],
+                [self.orientation_target],
                 action,
                 error,
-                [orientation_error, 
-                 np.cos(orientation_error), 
-                 np.sin(orientation_error)]
+                [orientation_error]
             ]
         )
 
