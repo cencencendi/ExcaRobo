@@ -18,8 +18,8 @@ class ExcaRobo(gym.Env):
         self.dt = 1.0/240.0
         self.max_theta = [1.03, 1.51, 3.14]    
         self.min_theta = [-0.954, -0.1214, -0.32]
-        self.position_target = np.array([6.5,0,3.5]) #theta0 = joint1, theta1 = joint2, theta2 = joint3, theta3 = joint4
-        self.orientation_target = -np.pi/2
+        self.position_target = np.array([10,0,2]) #theta0 = joint1, theta1 = joint2, theta2 = joint3, theta3 = joint4
+        self.orientation_target = -1.57
         self.max_obs = np.concatenate(
             [
                 np.array([1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0]),
@@ -61,15 +61,15 @@ class ExcaRobo(gym.Env):
             self.rot_mat(self.orientation_target)@self.rot_mat(self.orientation_now).T
         )
         #Position error
-        linkWorldPosition, *_ = p.getLinkState(self.boxId,4, computeLinkVelocity=1, computeForwardKinematics=1)
+        linkWorldPosition, *_ = p.getLinkState(self.boxId, 4, computeLinkVelocity=1, computeForwardKinematics=1)
 
         vec = np.array(linkWorldPosition) - self.position_target
 
-        reward_dist = 0.5*(0.5+np.exp(-np.linalg.norm(vec)))
-        reward_orientation = 0.5*np.exp(-orientation_error**2)
+        reward_dist = (0.5+np.exp(-np.linalg.norm(vec)))
+        reward_orientation = 0.05*orientation_error**2
         reward_ctrl = -0.005*np.linalg.norm(action) - 0.0025*np.linalg.norm(action - self.last_act) 
 
-        reward = reward_dist + reward_ctrl + reward_orientation
+        reward = reward_dist + reward_ctrl - reward_orientation
         self.new_obs = self._get_obs(action, vec, orientation_error)
 
         if np.any(self.theta_now > np.array(self.max_theta)) or np.any(self.theta_now < np.array(self.min_theta)):

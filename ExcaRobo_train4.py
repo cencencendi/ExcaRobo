@@ -10,8 +10,8 @@ if __name__ == "__main__":
 
     log_path = os.path.join('Training', 'Logs', 'Inverse_Kinematics')
     model = PPO('MlpPolicy', env, verbose=1, tensorboard_log=log_path)
-    model.learn(total_timesteps=2_500_000)
+    model.learn(total_timesteps=5_000_000)
 
-    model_save_path = os.path.join('Training', 'Saved Models', 'InvKin(22)_3Joint4')
+    model_save_path = os.path.join('Training', 'Saved Models', 'InvKin(13)_3Joint4_Orientasi')
     model.save(model_save_path)
     print("Kelar brou")

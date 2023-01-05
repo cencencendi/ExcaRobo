@@ -24,12 +24,12 @@ def normalize(x):
 
 for pose in pose_target:
     print(pose)
-    for i in range(100):
+    for i in range(200):
         p.setJointMotorControl2(boxId, 1 , p.POSITION_CONTROL, targetPosition = 0, force=50000)
         p.setJointMotorControl2(boxId, 2 , p.POSITION_CONTROL, targetPosition = -pose[0], force= 250_000)
         p.setJointMotorControl2(boxId, 3 , p.POSITION_CONTROL, targetPosition = -pose[1], force= 250_000)
         p.setJointMotorControl2(boxId, 4 , p.POSITION_CONTROL, targetPosition = -pose[2], force=250_000)
-        (linkWorldPosition, orientation, *_) = p.getLinkState(boxId,5, computeLinkVelocity=1, computeForwardKinematics=1)
+        (linkWorldPosition, orientation, *_) = p.getLinkState(boxId,4, computeLinkVelocity=1, computeForwardKinematics=1)
         # print(linkWorldPosition)    
         p.stepSimulation()
         time.sleep(1.0/240.)
@@ -40,10 +40,11 @@ for pose in pose_target:
         # ori = normalize(-(theta1[0]+theta2[0]+theta3[0]))
         # orientation = p.getEulerFromQuaternion(orientation)
         # print(orientation[1], ori)
-        # o.append(np.array(orientation))
+        o.append(np.array(linkWorldPosition))
         # o1.append(ori)
 
 p.disconnect()
-# plt.plot(list(range(1000)),np.array(o)[:,1])
+o = np.array(o)
+plt.plot(o[:,0],o[:,2])
 # plt.plot(list(range(1000)),np.array(o1))
 # plt.show()
